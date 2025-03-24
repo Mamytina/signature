@@ -80,7 +80,7 @@ WSGI_APPLICATION = 'signature.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'signature',
+        'NAME': 'signature_db',
         'USER': 'postgres',
         'PASSWORD': 'tinaposte',
         'HOST': 'localhost', 
