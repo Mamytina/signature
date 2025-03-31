@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modifier Utilisateur</title>
+    <style>
+        form {
+            width: 50%;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button[type="button"] {
+            background-color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <h2>Modifier l'utilisateur</h2>
+    <form action="{% url 'editeUsers' %}" method="POST">
+        {% csrf_token %}
+        <input type="text" id="nom" name="id_users" value={{data.pk}} hidden>
+
+        <label for="nom">Nom</label>
+        <input type="text" id="nom" name="nom" value={{data.first_name}} required>
+
+        <label for="prenom">Prénom</label>
+        <input type="text" id="prenom" name="prenom" value={{data.last_name}} required>
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value={{data.email}} required>
+
+        <label for="numero">Numéro</label>
+        <input type="text" id="numero" name="numero" value={{data.phone_number}} required>
+
+        {% comment %} <label for="role">Rôle</label>
+        <select id="role" name="role">
+            <option value="admin" selected>Admin</option>
+            <option value="utilisateur">Utilisateur</option>
+        </select> {% endcomment %}
+
+        <button type="submit">Sauvegarder</button>
+        <button type="button" onclick="window.location.href='{% url 'viewsUsers' %}'">Annuler</button>
+    </form>
+</body>
+</html>

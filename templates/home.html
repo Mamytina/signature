@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document avec Signatures</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.16.0/pdf-lib.min.js"></script>
+
+    <style>
+        .main-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .controls {
+            width: 30%;
+            padding: 20px;
+        }
+        .container {
+            position: relative;
+            width: 65%;
+            max-width: 800px;
+            height: 500px;
+            border: 1px solid #ccc;
+            overflow: auto;
+            background: #f4f4f4;
+        }
+        .canvas-container {
+            display: flex;
+            flex-direction: column;
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .signature-box {
+            position: absolute;
+            width: 150px;
+            height: 50px;
+            border: 2px dashed blue;
+            text-align: center;
+            line-height: 50px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.8);
+            cursor: grab;
+            user-select: none;
+        }
+        .signature-img {
+            position: absolute;
+            width: 150px;
+            height: 50px;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+    <h2>Uploader un Document et Ajouter des Signatures</h2>
+    
+    <div class="main-container">
+        <div class="container" id="documentContainer">
+            <div class="canvas-container" id="canvasContainer"></div>
+            <div id="signatureContainer"></div>
+        </div>
+        
+        <div class="controls">
+            <label for="fileInput">Choisir un document :</label>
+            <input type="file" id="fileInput" accept=".pdf">
+            
+            <br><br>
+            
+            <label for="signatureCount">Nombre de signatures :</label>
+            <input type="number" id="signatureCount" min="1" max="10">
+            <button onclick="generateSignatureInputs()">Confirmer</button>
+            
+            <div id="signatures"></div>
+            <button onclick="createSignatures()">Créer les signatures</button>
+            <br><br>
+            <button onclick="lockSignatures()">Fixer les signatures</button>
+            <br><br>
+            <label for="imageInput">Ajouter une image :</label>
+            <input type="file" id="imageInput" accept="image/*" onchange="addImageToSignature(event)">
+            <br><br>
+            <button onclick="downloadPDF()">Télécharger le PDF</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedBox = null;
+        let pdfDoc = null; // Déclaration globale pour PDFLib
+        let pdfjsDoc = null; // Pour pdf.js
+        let pdfBytes = null; // Stocker les bytes du PDF original
+        let totalPages = 0;
+
+        // Fonction pour charger le PDF avec pdf.js
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const fileReader = new FileReader();
+                fileReader.onload = function() {
+                    const typedArray = new Uint8Array(this.result);
+                    pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                        pdfjsDoc = pdf;
+                        pdfBytes = typedArray; // Enregistrer les bytes pour les utiliser avec pdf-lib
+                        totalPages = pdf.numPages; // Obtenir le nombre total de pages
+                        renderPages(); // Charger toutes les pages du PDF
+                    });
+                };
+                fileReader.readAsArrayBuffer(file);
+            } else {
+                console.error("Aucun fichier sélectionné !");
+            }
+        });
+
+        // Fonction pour afficher toutes les pages du PDF avec pdf.js
+        function renderPages() {
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = ''; // Vider le conteneur avant d'ajouter les nouvelles pages
+
+            for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+                const canvasWrapper = document.createElement('div');
+                const canvas = document.createElement('canvas');
+                canvasWrapper.appendChild(canvas);
+                container.appendChild(canvasWrapper);
+                
+                renderPage(pageNumber, canvas);
+            }
+        }
+
+        // Fonction pour afficher une page PDF avec pdf.js
+        function renderPage(pageNumber, canvas) {
+            pdfjsDoc.getPage(pageNumber).then(function(page) {
+                const ctx = canvas.getContext('2d');
+                const viewport = page.getViewport({ scale: 1.5 });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                page.render(renderContext);
+            });
+        }
+
+        // Fonction pour générer les champs de signature
+        function generateSignatureInputs() {
+            const count = document.getElementById('signatureCount').value;
+            const container = document.getElementById('signatures');
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                container.innerHTML += `<br>Nom du signataire ${i + 1}: <input type='text' class='signerName'><br>`;
+            }
+        }
+
+        // Fonction pour créer les boîtes de signature
+        function createSignatures() {
+            const container = document.getElementById('signatureContainer');
+            container.innerHTML = '';
+            const names = document.querySelectorAll('.signerName');
+            names.forEach((input, index) => {
+                const box = document.createElement('div');
+                box.classList.add('signature-box');
+                box.style.top = '50px';
+                box.style.left = '50px';
+                box.innerText = "Signature " + (index + 1);
+                box.setAttribute('draggable', true);
+                box.addEventListener('mousedown', startDrag);
+                box.addEventListener('click', () => selectedBox = box);
+                container.appendChild(box);
+            });
+        }
+
+        // Fonction pour déplacer les boîtes de signature
+        function startDrag(event) {
+            const box = event.target;
+            if (box.classList.contains('fixed')) return;
+            const container = document.getElementById('documentContainer');
+            let offsetX = event.clientX - box.getBoundingClientRect().left;
+            let offsetY = event.clientY - box.getBoundingClientRect().top;
+            
+            function move(event) {
+                let newX = event.clientX - offsetX - container.getBoundingClientRect().left + container.scrollLeft;
+                let newY = event.clientY - offsetY - container.getBoundingClientRect().top + container.scrollTop;
+                box.style.left = `${newX}px`;
+                box.style.top = `${newY}px`;
+            }
+            
+            function stopDrag() {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+            
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        // Fonction pour verrouiller les signatures
+        function lockSignatures() {
+            document.querySelectorAll('.signature-box').forEach(box => {
+                box.classList.add('fixed');
+                box.setAttribute('draggable', false);
+                box.removeEventListener('mousedown', startDrag);
+            });
+        }
+
+        // Fonction pour ajouter une image à une signature
+        function addImageToSignature(event) {
+            if (!selectedBox) {
+                alert("Veuillez sélectionner une signature avant d'ajouter une image.");
+                return;
+            }
+            const file = event.target.files[0];
+            if (file) {
+                const imgURL = URL.createObjectURL(file);
+                const img = document.createElement("img");
+                img.src = imgURL;
+                img.classList.add("signature-img");
+                img.style.width = selectedBox.offsetWidth + "px";
+                img.style.height = selectedBox.offsetHeight + "px";
+                img.style.top = selectedBox.style.top;
+                img.style.left = selectedBox.style.left;
+                
+                const container = document.getElementById('signatureContainer');
+                container.appendChild(img);
+
+                selectedBox.remove();
+                selectedBox = null;
+            }
+        }
+
+        // Fonction pour télécharger le PDF avec les signatures
+        async function downloadPDF() {
+            if (!pdfBytes) {
+                alert("Veuillez uploader un document PDF d'abord.");
+                return;
+            }
+        
+            const signatureBoxes = document.querySelectorAll('.signature-box');
+            const pdf = await PDFLib.PDFDocument.load(pdfBytes);
+            const page = pdf.getPages()[0]; // Utilise la première page du PDF
+        
+            // Ajouter les signatures aux coordonnées
+            for (let box of signatureBoxes) {
+                const img = box.querySelector("img");
+                if (img) {
+                    let imgData = img.src;
+                    if (imgData.startsWith("data:image")) {
+                        const base64Data = imgData.split(",")[1];
+                        imgData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    } else {
+                        imgData = await fetch(imgData).then(res => res.arrayBuffer());
+                    }
+        
+                    const pdfImage = await pdf.embedPng(imgData);
+                    const { left, top, width, height } = box.getBoundingClientRect();
+                    const xPos = left;
+                    const yPos = page.getHeight() - top - height;
+        
+                    page.drawImage(pdfImage, {
+                        x: xPos,
+                        y: yPos,
+                        width: 150,
+                        height: 50
+                    });
+                }
+            }
+        
+            // Générer le PDF final
+            const pdfBytesFinal = await pdf.save();
+            const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'document-signé.pdf';
+            link.click();
+        }
+    </script>
+</body>
+</html>

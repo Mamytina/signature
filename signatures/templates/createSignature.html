@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signature</title>
+    <style>
+        #signature-canvas {
+            border: 1px solid black;
+        }
+        #clear-button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Signature</h2>
+    <canvas id="signature-canvas" width="400" height="200"></canvas>
+    <br>
+    <button id="clear-button">Effacer</button>
+    <br>
+    <button id="save-button">Enregistrer la signature</button>
+
+    <script>
+        const canvas = document.getElementById('signature-canvas');
+        const context = canvas.getContext('2d');
+
+        let isDrawing = false;
+
+        // Détection du début du dessin
+        canvas.addEventListener('mousedown', function (event) {
+            isDrawing = true;
+            context.moveTo(event.offsetX, event.offsetY);
+        });
+
+        // Détection du mouvement de la souris pour dessiner
+        canvas.addEventListener('mousemove', function (event) {
+            if (isDrawing) {
+                context.lineTo(event.offsetX, event.offsetY);
+                context.stroke();
+            }
+        });
+
+        // Fin du dessin
+        canvas.addEventListener('mouseup', function () {
+            isDrawing = false;
+        });
+
+        // Effacer le canvas
+        document.getElementById('clear-button').addEventListener('click', function () {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // Sauvegarder la signature comme image
+        document.getElementById('save-button').addEventListener('click', function () {
+            const signatureDataURL = canvas.toDataURL(); // Récupérer l'image sous forme de Data URL
+            console.log(signatureDataURL);
+
+            // Envoi de l'image au backend
+            const formData = new FormData();
+            formData.append('signature', signatureDataURL);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}'); // Token CSRF
+
+            fetch("{% url 'addSignature'%}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Signature enregistrée avec succès!');
+            })
+            .catch(error => {
+                alert('Erreur lors de l\'enregistrement de la signature.');
+            });
+        });
+    </script>
+</body>
+</html>

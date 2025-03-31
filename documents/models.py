@@ -8,3 +8,4 @@ class Document(models.Model):
    fichier = models.FileField(upload_to='documents/')
    date_ajout = models.DateTimeField(auto_now_add=True)
    users = models.ForeignKey(Users, on_delete=models.CASCADE)
+   signe = models.BooleanField(default=False)
