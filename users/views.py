@@ -3,6 +3,9 @@ from users.models import Users
 from signatures.models import Signatures
 import base64
 from django.core.files.base import ContentFile
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 # Create your views here.
 
 def index(request):
@@ -102,3 +105,22 @@ def loginUsers(request):
 
         # Si l'utilisateur n'est pas trouvé, on reste sur la page de connexion
         return render(request, 'index.html', {'error': 'Utilisateur non trouvé'})
+    
+    
+    
+    
+    
+    
+@csrf_exempt
+def upload_signature(request):
+    data=request.data
+    user_id = data[user_id]
+    signature_data = data[signature]
+
+    user = Users.objects.get(id=user_id)
+     # créer et enregistrer la signature
+    signature = Signatures.objects.create(user=user, signature_image=signature_data)
+
+    return JsonResponse({'message': 'Signature enregistrée avec succès', 'signature_url': signature.signature_image.url})
+
+        

@@ -4,6 +4,9 @@ from django.shortcuts import render, redirect
 from .models import Signatures
 from django.contrib.auth.decorators import login_required
 from users.models import Users
+import uuid
+from django.http import JsonResponse
+from .models import Users, Signatures
 
 # Create your views here.
 
@@ -42,4 +45,7 @@ def saveSignature(request,id_users):
          Signatures.objects.create(user=users,signature_image=file)
          print('vita')
     return render (request,'createSignature.html',{'id_users':id_users})
-          
+
+
+
+

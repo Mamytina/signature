@@ -2,6 +2,8 @@
 from django.contrib import admin
 from django.urls import path
 from users.views import *
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('viewsUsers', viewsUsers,name='viewsUsers'),
@@ -11,4 +13,5 @@ urlpatterns = [
     path('editeUsers', editeUsers,name='editeUsers'),
     path('home',home,name='home'),
     path('loginUsers',loginUsers,name='loginUsers'),
-]
+    path('upload-signature/', upload_signature, name='upload_signature'),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
